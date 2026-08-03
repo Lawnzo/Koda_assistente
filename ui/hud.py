@@ -336,7 +336,7 @@ class HudKoda:
             self.tela.blit(surf_txt, surf_txt.get_rect(center=(self.centro[0], self.centro[1] + r_base + 40)))
         
         self.tela.blit(self.fonte_pequena.render(f"RAD: {r_base:.1f} | ANG: {self.ang:.2f}", True, cor_texto), (self.centro[0] + r_base + 30, self.centro[1]))
-        self.tela.blit(self.fonte_pequena.render(f"JARVIS_v2.0_CORE_HD", True, cor_texto), (self.centro[0] - r_base - 130, self.centro[1]))
+        self.tela.blit(self.fonte_pequena.render(f"Koda_v2.0_CORE_HD", True, cor_texto), (self.centro[0] - r_base - 130, self.centro[1]))
 
         # =========================================================================
         # LAYOUT HD (1280x720) 3 COLUNAS PERFEITAMENTE EXPANDIDAS E ALINHADAS
