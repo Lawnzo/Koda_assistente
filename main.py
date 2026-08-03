@@ -47,7 +47,7 @@ aguardando_especificacao_codigo = False
 aguardando_confirmacao_plano = False
 aguardando_confirmacao_reiniciar = False
 modulo_atual = "SISTEMA_IDLE"
-log_eventos = [("SYS.INIT: KODA CORE v2.0 RAG ONLINE.", (0, 220, 255))]
+log_eventos = [("SYS.INIT: KODA CORE v2.0 CAM_HUD ONLINE.", (0, 220, 255))]
 
 # Component Initialization
 tts = TTSEngine(default_voice=config.VOZES_DISPONIVEIS.get("antonio", "pt-BR-AntonioNeural"))
@@ -57,6 +57,7 @@ vector_db = VectorDBEngine()
 doc_indexer = DocumentIndexerThread(vector_db=vector_db)
 
 auto_coder_skill = AutoCoderSkill(config, brain)
+webcam_skill = WebcamVisionSkill(config, brain)
 
 dispatcher = CommandDispatcher(config=config, nlp_engine=nlp, brain=brain)
 dispatcher.register_skill(SmartHomeSkill(config))
@@ -65,7 +66,7 @@ dispatcher.register_skill(VisionSkill(config, brain))
 dispatcher.register_skill(WeatherNetSkill(config))
 dispatcher.register_skill(GoogleServicesSkill(config, brain))
 dispatcher.register_skill(VoiceSkill(config, tts))
-dispatcher.register_skill(WebcamVisionSkill(config, brain))
+dispatcher.register_skill(webcam_skill)
 dispatcher.register_skill(DevAssistantSkill(config, brain))
 dispatcher.register_skill(MemoryRAGSkill(config, brain, vector_db))
 dispatcher.register_skill(auto_coder_skill)
@@ -212,7 +213,6 @@ def escutar_e_processar():
                             modulo_atual = "SYS_UI"
                             tts.speak("Painel principal restaurado.")
                         else:
-                            # Injeta contexto vetorial relevante no fallback da IA
                             contexto_local = vector_db.buscar_contexto(texto, n_results=2)
                             if contexto_local:
                                 log_eventos.append((f"> RAG: {len(contexto_local)} TRECHOS ENCONTRADOS", (0, 255, 150)))
@@ -258,6 +258,7 @@ def escutar_e_processar():
 # Main Execution Loop
 if __name__ == "__main__":
     hud = HudKoda(config)
+    webcam_skill.set_hud(hud)
     
     gatilhos_locais = getattr(config, 'GATILHOS_ATIVACAO', ['koda', 'computador'])
     wake_engine = OfflineWakeWord(keywords=gatilhos_locais, on_wake_callback=ao_despertar_offline)

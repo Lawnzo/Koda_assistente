@@ -1,5 +1,6 @@
 import sys
 import os
+import io
 import time
 import math
 import random
@@ -28,29 +29,22 @@ class MARGINS(ctypes.Structure):
     ]
 
 def aplicar_transparencia_widget(hwnd, cor_chroma):
-    """
-    Aplica transparência total por ColorKey sem bordas ou molduras no Windows.
-    """
     try:
-        # 1. Ajusta o estilo para POPUP sem bordas
         style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
         style &= ~(win32con.WS_CAPTION | win32con.WS_THICKFRAME | win32con.WS_MINIMIZEBOX | win32con.WS_MAXIMIZEBOX | win32con.WS_SYSMENU | win32con.WS_BORDER)
         style |= win32con.WS_POPUP
         win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
 
-        # 2. Aplica WS_EX_LAYERED e WS_EX_TOOLWINDOW (evita ícone extra na barra de tarefas)
         exstyle = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
         exstyle &= ~(win32con.WS_EX_WINDOWEDGE | win32con.WS_EX_CLIENTEDGE | win32con.WS_EX_DLGMODALFRAME | win32con.WS_EX_STATICEDGE)
         exstyle |= (win32con.WS_EX_LAYERED | win32con.WS_EX_TOOLWINDOW)
         win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, exstyle)
 
-        # 3. Define a cor de transparência (Magenta 255, 0, 255)
         r, g, b = cor_chroma
         colorkey = win32api.RGB(r, g, b)
         win32gui.SetLayeredWindowAttributes(hwnd, colorkey, 0, win32con.LWA_COLORKEY)
 
-        # 4. Desativa renderização de borda/sombra do DWM do Windows 10/11
-        policy = ctypes.c_int(1) # DWMNCRP_DISABLED
+        policy = ctypes.c_int(1)
         ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 2, ctypes.byref(policy), ctypes.sizeof(policy))
     except Exception as e:
         print(f"[HUD DWM WARN] Erro ao aplicar estilo transparente: {e}")
@@ -98,6 +92,7 @@ class HudKoda:
         self.COR_CHROMA = (255, 0, 255) 
         self.MARGEM = 30 
         self.modulo_ativo = "SISTEMA_IDLE"
+        self.camera_preview_surf = None
         
         larg = getattr(config, 'LARGURA', 1280)
         alt = getattr(config, 'ALTURA', 720)
@@ -115,6 +110,19 @@ class HudKoda:
 
         self.particles = [Particle(self.centro) for _ in range(35)]
 
+    def atualizar_preview_camera(self, image_bytes_ou_surf):
+        try:
+            if isinstance(image_bytes_ou_surf, (bytes, bytearray)):
+                surf = pygame.image.load(io.BytesIO(image_bytes_ou_surf))
+            else:
+                surf = image_bytes_ou_surf
+
+            # Redimensiona proporcionalmente para o frame HUD (220x145)
+            self.camera_preview_surf = pygame.transform.smoothscale(surf, (220, 145))
+            print("[HUD] Preview de imagem da câmera atualizado com sucesso no painel!")
+        except Exception as e:
+            print(f"[HUD WARN] Erro ao carregar preview da imagem no HUD: {e}")
+
     def _configurar_janela(self, larg, alt, tela_cheia):
         pygame.display.quit()
         pygame.display.init()
@@ -122,7 +130,6 @@ class HudKoda:
         if tela_cheia:
             self.tela = pygame.display.set_mode((larg, alt), pygame.DOUBLEBUF)
         else:
-            # Em modo widget (NOFRAME sem DOUBLEBUF), evita que o Direct3D pinte bordas pretas ao redor do SwapChain
             self.tela = pygame.display.set_mode((larg, alt), pygame.NOFRAME)
 
         pygame.display.set_caption("KODA AI v2.0 | JARVIS Core Interface")
@@ -142,9 +149,7 @@ class HudKoda:
         if self.modo_widget:
             self._configurar_janela(150, 150, tela_cheia=False)
             hwnd = pygame.display.get_wm_info()["window"]
-            
             aplicar_transparencia_widget(hwnd, self.COR_CHROMA)
-            
             screen_w, screen_h = pyautogui.size()
             flags = win32con.SWP_SHOWWINDOW | win32con.SWP_FRAMECHANGED | win32con.SWP_NOACTIVATE
             win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, screen_w - 180, 80, 150, 150, flags)
@@ -154,7 +159,6 @@ class HudKoda:
             exstyle = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
             win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, exstyle & ~win32con.WS_EX_LAYERED)
             win32gui.RedrawWindow(hwnd, None, None, win32con.RDW_INVALIDATE | win32con.RDW_UPDATENOW)
-            
             screen_w, screen_h = pyautogui.size()
             win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, screen_w // 2 - larg // 2, screen_h // 2 - alt // 2, larg, alt, win32con.SWP_SHOWWINDOW | win32con.SWP_FRAMECHANGED)
 
@@ -162,7 +166,6 @@ class HudKoda:
         glow_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
         c_glow = (color[0], color[1], color[2], alpha)
         c_glow_outer = (color[0], color[1], color[2], alpha // 3)
-        
         pygame.draw.circle(glow_surf, c_glow_outer, (radius + 10, radius + 10), radius + 4, width + 4)
         pygame.draw.circle(glow_surf, c_glow, (radius + 10, radius + 10), radius, width + 2)
         surface.blit(glow_surf, (center[0] - radius - 10, center[1] - radius - 10))
@@ -208,6 +211,35 @@ class HudKoda:
             pygame.draw.rect(self.tela, (cor[0]//3, cor[1]//3, cor[2]//3), (bx, by, largura_barra - 3, h_bar))
             pygame.draw.rect(self.tela, cor_topo, (bx, by, largura_barra - 3, 2))
 
+    def desenhar_frame_camera_satelite(self, x, y, largura, altura, cor):
+        """
+        Desenha o quadro Néon com a captura de imagem da câmera satélite.
+        """
+        pygame.draw.rect(self.tela, (15, 20, 35), (x, y, largura, altura))
+        pygame.draw.rect(self.tela, cor, (x, y, largura, altura), 1)
+        self.tela.blit(self.fonte_stats.render("[ SATELLITE CAM CAPTURE ]", True, cor), (x + 10, y + 5))
+
+        x_inner = x + 10
+        y_inner = y + 25
+        w_inner = largura - 20
+        h_inner = altura - 35
+
+        if self.camera_preview_surf:
+            self.tela.blit(self.camera_preview_surf, (x_inner, y_inner))
+            pygame.draw.rect(self.tela, cor, (x_inner, y_inner, w_inner, h_inner), 1)
+        else:
+            pygame.draw.rect(self.tela, (8, 12, 22), (x_inner, y_inner, w_inner, h_inner))
+            pygame.draw.rect(self.tela, (40, 50, 70), (x_inner, y_inner, w_inner, h_inner), 1)
+            
+            # Grade de espera técnica
+            for gx in range(x_inner, x_inner + w_inner, 20):
+                pygame.draw.line(self.tela, (20, 30, 45), (gx, y_inner), (gx, y_inner + h_inner), 1)
+            for gy in range(y_inner, y_inner + h_inner, 20):
+                pygame.draw.line(self.tela, (20, 30, 45), (x_inner, gy), (x_inner + w_inner, gy), 1)
+
+            surf_msg = self.fonte_pequena.render("SATELLITE CAM AGUARDANDO CAPTURA...", True, (120, 150, 170))
+            self.tela.blit(surf_msg, surf_msg.get_rect(center=(x_inner + w_inner//2, y_inner + h_inner//2)))
+
     def desenhar(self, audio_visual, cor_alvo, status_texto, log_eventos, modulo="SISTEMA_IDLE"):
         self.modulo_ativo = modulo
         larg = getattr(self.config, 'LARGURA', 1280)
@@ -225,7 +257,6 @@ class HudKoda:
         if self.modo_widget:
             self.tela.fill(self.COR_CHROMA) 
             centro_widget = (75, 75)
-            # Fundo escuro removido para deixar apenas os anéis flutuantes transparentes 
             
             self.ang += 0.03
             pulso_mini = math.sin(time.time() * 4) * 3
@@ -311,11 +342,13 @@ class HudKoda:
         self.tela.blit(self.fonte_pequena.render(f"RAD: {r_base:.1f} | ANG: {self.ang:.2f}", True, cor_texto), (self.centro[0] + r_base + 30, self.centro[1]))
         self.tela.blit(self.fonte_pequena.render(f"JARVIS_v2.0_CORE", True, cor_texto), (self.centro[0] - r_base - 110, self.centro[1]))
 
+        # Caixa do Módulo Ativo (Canto Superior Esquerdo)
         pygame.draw.rect(self.tela, (15, 20, 35), (self.MARGEM + 10, self.MARGEM + 10, 230, 50))
         pygame.draw.rect(self.tela, cor, (self.MARGEM + 10, self.MARGEM + 10, 230, 50), 1)
         self.tela.blit(self.fonte_stats.render("ACTIVE_MODULE:", True, (150, 150, 150)), (self.MARGEM + 20, self.MARGEM + 15))
         self.tela.blit(self.fonte_log.render(self.modulo_ativo, True, cor), (self.MARGEM + 20, self.MARGEM + 35))
 
+        # Hardware Stats (Canto Superior Direito)
         cpu = psutil.cpu_percent()
         ram = psutil.virtual_memory().percent
         x_hw = larg - self.MARGEM - 130
@@ -330,6 +363,10 @@ class HudKoda:
             cor_bloco = cor if (ram/10) >= i else (20, 25, 45)
             pygame.draw.rect(self.tela, cor_bloco, (x_hw + (i*14), self.MARGEM + 65, 10, 12))
 
+        # Quadro da Câmera Satélite (Canto Superior Direito, abaixo dos Stats de CPU/RAM)
+        self.desenhar_frame_camera_satelite(larg - self.MARGEM - 240, self.MARGEM + 90, 240, 180, cor)
+
+        # Logs do Sistema (Canto Inferior Esquerdo)
         y_log = alt - self.MARGEM - 130
         self.tela.blit(self.fonte_stats.render(":: SYS_LOGS ::", True, cor), (self.MARGEM + 10, y_log))
         pygame.draw.line(self.tela, cor, (self.MARGEM + 10, y_log + 15), (200, y_log + 15), 1)
@@ -337,6 +374,7 @@ class HudKoda:
         for i, log in enumerate(log_eventos[-6:]):
             self.tela.blit(self.fonte_log.render(log[0], True, log[1]), (self.MARGEM + 10, y_log + 25 + (i * 18)))
 
+        # Equalizador de Áudio (Canto Inferior Direito)
         self.desenhar_equalizador_audio(audio_visual, larg - self.MARGEM - 220, alt - self.MARGEM - 130, 220, 120, cor)
 
         pygame.display.flip()

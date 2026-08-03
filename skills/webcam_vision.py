@@ -5,9 +5,13 @@ from PIL import Image
 from skills.base_skill import BaseSkill
 
 class WebcamVisionSkill(BaseSkill):
-    def __init__(self, config=None, brain=None):
+    def __init__(self, config=None, brain=None, hud=None):
         super().__init__(config)
         self.brain = brain
+        self.hud = hud
+
+    def set_hud(self, hud):
+        self.hud = hud
 
     def can_handle(self, intent):
         return intent == "VISAO_WEBCAM"
@@ -28,6 +32,10 @@ class WebcamVisionSkill(BaseSkill):
             if res.status_code == 200:
                 image_bytes = res.content
                 image_pil = Image.open(io.BytesIO(image_bytes))
+
+                # Atualiza a foto imediatamente na tela do HUD Néon!
+                if self.hud:
+                    self.hud.atualizar_preview_camera(image_bytes)
 
                 cmd_lower = command_text.lower()
                 
