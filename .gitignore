@@ -6,6 +6,13 @@ token.json
 devices.json
 tinytuya.json
 
+# PyInstaller Build Output
+dist/
+dist_koda/
+build/
+build_koda/
+*.spec
+
 # Python cache & Audio
 __pycache__/
 *.pyc
