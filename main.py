@@ -19,6 +19,8 @@ from core.tts import TTSEngine
 from core.brain import GeminiBrain
 from core.dispatcher import CommandDispatcher
 from core.wake_word import OfflineWakeWord
+from core.vector_db import VectorDBEngine
+from core.doc_indexer import DocumentIndexerThread
 
 from skills.smart_home import SmartHomeSkill
 from skills.system_ops import SystemOpsSkill
@@ -29,6 +31,7 @@ from skills.voice_skill import VoiceSkill
 from skills.webcam_vision import WebcamVisionSkill
 from skills.dev_assistant import DevAssistantSkill
 from skills.auto_coder import AutoCoderSkill
+from skills.memory_rag import MemoryRAGSkill
 
 from ui.hud import HudKoda
 
@@ -44,12 +47,14 @@ aguardando_especificacao_codigo = False
 aguardando_confirmacao_plano = False
 aguardando_confirmacao_reiniciar = False
 modulo_atual = "SISTEMA_IDLE"
-log_eventos = [("SYS.INIT: KODA CORE v2.0 ONLINE.", (0, 220, 255))]
+log_eventos = [("SYS.INIT: KODA CORE v2.0 RAG ONLINE.", (0, 220, 255))]
 
 # Component Initialization
 tts = TTSEngine(default_voice=config.VOZES_DISPONIVEIS.get("antonio", "pt-BR-AntonioNeural"))
 brain = GeminiBrain(api_key=getattr(config, 'CHAVE_API_GEMINI', ''))
 nlp = LocalNLP(intents_file="intents.json")
+vector_db = VectorDBEngine()
+doc_indexer = DocumentIndexerThread(vector_db=vector_db)
 
 auto_coder_skill = AutoCoderSkill(config, brain)
 
@@ -62,6 +67,7 @@ dispatcher.register_skill(GoogleServicesSkill(config, brain))
 dispatcher.register_skill(VoiceSkill(config, tts))
 dispatcher.register_skill(WebcamVisionSkill(config, brain))
 dispatcher.register_skill(DevAssistantSkill(config, brain))
+dispatcher.register_skill(MemoryRAGSkill(config, brain, vector_db))
 dispatcher.register_skill(auto_coder_skill)
 
 def carregar_skills_personalizadas():
@@ -124,7 +130,6 @@ def escutar_e_processar():
             time.sleep(0.1)
             continue
 
-        # Espera o TTS terminar de falar antes de abrir o microfone!
         while tts.is_speaking():
             time.sleep(0.1)
 
@@ -193,7 +198,7 @@ def escutar_e_processar():
                             time.sleep(0.1)
                         tempo_modo_atento = time.time() + 15
 
-                    # 4. Comandos Normais
+                    # 4. Comandos Normais com Busca RAG Automática em Fallback
                     else:
                         cmd_min = getattr(config, 'COMANDOS_MINIMIZAR', ['minimizar'])
                         cmd_max = getattr(config, 'COMANDOS_MAXIMIZAR', ['restaurar', 'maximizar'])
@@ -207,7 +212,16 @@ def escutar_e_processar():
                             modulo_atual = "SYS_UI"
                             tts.speak("Painel principal restaurado.")
                         else:
-                            resposta, modulo = dispatcher.dispatch(texto)
+                            # Injeta contexto vetorial relevante no fallback da IA
+                            contexto_local = vector_db.buscar_contexto(texto, n_results=2)
+                            if contexto_local:
+                                log_eventos.append((f"> RAG: {len(contexto_local)} TRECHOS ENCONTRADOS", (0, 255, 150)))
+                                contexto_str = "\n- ".join(contexto_local)
+                                prompt_enriquecido = f"[MEMÓRIA LOCAL DO KODA:\n- {contexto_str}]\n\nPergunta do Usuário: {texto}"
+                                resposta, modulo = dispatcher.dispatch(prompt_enriquecido)
+                            else:
+                                resposta, modulo = dispatcher.dispatch(texto)
+
                             modulo_atual = modulo
                             if modulo == "WAIT_AUTO_CODE_PROMPT":
                                 aguardando_especificacao_codigo = True
@@ -275,6 +289,7 @@ if __name__ == "__main__":
             if stream:
                 stream.stop()
             wake_engine.stop()
+            doc_indexer.stop()
             tts.stop()
             hud.fechar()
             
@@ -312,5 +327,6 @@ if __name__ == "__main__":
     if stream:
         stream.stop()
     wake_engine.stop()
+    doc_indexer.stop()
     tts.stop()
     hud.fechar()

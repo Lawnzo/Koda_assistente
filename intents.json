@@ -28,6 +28,14 @@
         "veja o quarto", "olhe o ambiente", "quem está no quarto", "olhe pela câmera", 
         "veja a câmera", "analise o ambiente", "olhe para mim"
     ],
+    "MEMORIA_SALVAR": [
+        "memorize que", "guarde que", "anote que", "lembre-se de que", 
+        "salve na memória", "adicione na memória"
+    ],
+    "MEMORIA_CONSULTAR": [
+        "consulte na sua memória", "o que você sabe sobre", "procure na memória", 
+        "qual o valor de", "busque na memória", "o que você lembra"
+    ],
     "AUTO_CODE": [
         "programe", "crie uma nova skill", "implemente o código", "auto programar", 
         "crie o código", "escreva o código"
