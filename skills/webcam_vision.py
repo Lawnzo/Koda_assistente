@@ -29,11 +29,23 @@ class WebcamVisionSkill(BaseSkill):
                 image_bytes = res.content
                 image_pil = Image.open(io.BytesIO(image_bytes))
 
-                prompt = (
-                    "Você é o assistente Koda. Analise a imagem capturada pela câmera do quarto/mesa. "
-                    "Descreva quem ou o que está no ambiente de forma muito natural, humana e direta para o Lucas. "
-                    "REGRA: Não use formatação de texto (sem asteriscos, negrito ou listas)."
-                )
+                cmd_lower = command_text.lower()
+                
+                # Se o usuário pediu explicitamente para descrever todo o ambiente
+                if any(w in cmd_lower for w in ["descreva o ambiente", "descreva o quarto", "o que tem no quarto", "descreva o local", "descreva tudo"]):
+                    prompt = (
+                        "Você é o assistente Koda. Descreva o ambiente capturado pela câmera do quarto/mesa de forma natural, humana e direta para o Lucas.\n"
+                        "REGRA: Não use formatação de texto (sem asteriscos, negrito ou listas)."
+                    )
+                # Pergunta específica sobre a imagem (ex: quantos dedos, cor da camisa, objeto segurado)
+                else:
+                    prompt = (
+                        "Você é o assistente Koda. Responda APENAS e EXATAMENTE o que o Lucas perguntou ao olhar para a imagem da câmera.\n"
+                        "REGRA DE OURO: Seja extremamente preciso, direto e conciso (responda em apenas uma frase curta). "
+                        "NÃO descreva o ambiente nem outros objetos da cena, a menos que ele tenha pedido isso.\n"
+                        "Não use formatação de texto (sem asteriscos, negrito ou listas).\n\n"
+                        f"Pergunta do Lucas: {command_text}"
+                    )
 
                 resposta = self.brain.analyze_image(image_pil, prompt)
                 return resposta, "VISION_WEBCAM"

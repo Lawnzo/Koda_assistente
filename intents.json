@@ -26,7 +26,9 @@
     ],
     "VISAO_WEBCAM": [
         "veja o quarto", "olhe o ambiente", "quem está no quarto", "olhe pela câmera", 
-        "veja a câmera", "analise o ambiente", "olhe para mim"
+        "veja a câmera", "analise o ambiente", "olhe para mim", "quantos dedos", 
+        "o que estou segurando", "qual objeto", "de que cor", "veja se", 
+        "olhe se", "estou mostrando", "o que é isso", "o que estou fazendo"
     ],
     "MEMORIA_SALVAR": [
         "memorize que", "guarde que", "anote que", "lembre-se de que", 
