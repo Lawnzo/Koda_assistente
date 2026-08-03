@@ -1,0 +1,10 @@
+pygame-ce
+sounddevice
+numpy
+edge-tts
+psutil
+pyautogui
+SpeechRecognition
+requests
+google-generativeai
+scipy
