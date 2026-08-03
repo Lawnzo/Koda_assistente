@@ -100,11 +100,11 @@ class HudKoda:
 
         self.fonte_hud = pygame.font.SysFont("Verdana", 20, bold=True)
         self.fonte_pequena = pygame.font.SysFont("Consolas", 10)
-        self.fonte_log = pygame.font.SysFont("Consolas", 13)
+        self.fonte_log = pygame.font.SysFont("Consolas", 12)
         self.fonte_stats = pygame.font.SysFont("Consolas", 12, bold=True)
         
         self.ang = 0
-        self.centro = (larg // 2, alt // 2 - 40)
+        self.centro = (larg // 2, alt // 2 - 20)
         self.current_color = (0, 220, 255)
         self.target_color = (0, 220, 255)
 
@@ -117,8 +117,7 @@ class HudKoda:
             else:
                 surf = image_bytes_ou_surf
 
-            # Redimensiona proporcionalmente para o frame HUD (220x145)
-            self.camera_preview_surf = pygame.transform.smoothscale(surf, (220, 145))
+            self.camera_preview_surf = pygame.transform.smoothscale(surf, (220, 140))
             print("[HUD] Preview de imagem da câmera atualizado com sucesso no painel!")
         except Exception as e:
             print(f"[HUD WARN] Erro ao carregar preview da imagem no HUD: {e}")
@@ -212,9 +211,6 @@ class HudKoda:
             pygame.draw.rect(self.tela, cor_topo, (bx, by, largura_barra - 3, 2))
 
     def desenhar_frame_camera_satelite(self, x, y, largura, altura, cor):
-        """
-        Desenha o quadro Néon com a captura de imagem da câmera satélite.
-        """
         pygame.draw.rect(self.tela, (15, 20, 35), (x, y, largura, altura))
         pygame.draw.rect(self.tela, cor, (x, y, largura, altura), 1)
         self.tela.blit(self.fonte_stats.render("[ SATELLITE CAM CAPTURE ]", True, cor), (x + 10, y + 5))
@@ -231,7 +227,6 @@ class HudKoda:
             pygame.draw.rect(self.tela, (8, 12, 22), (x_inner, y_inner, w_inner, h_inner))
             pygame.draw.rect(self.tela, (40, 50, 70), (x_inner, y_inner, w_inner, h_inner), 1)
             
-            # Grade de espera técnica
             for gx in range(x_inner, x_inner + w_inner, 20):
                 pygame.draw.line(self.tela, (20, 30, 45), (gx, y_inner), (gx, y_inner + h_inner), 1)
             for gy in range(y_inner, y_inner + h_inner, 20):
@@ -287,7 +282,7 @@ class HudKoda:
             pygame.display.flip()
             return
 
-        # Modo Tela Cheia
+        # Modo Tela Cheia - Painel Simétrico Balanceado
         self.tela.fill(cor_fundo)
         
         for x in range(0, larg, 40):
@@ -306,7 +301,7 @@ class HudKoda:
 
         self.ang += 0.03
         pulso = math.sin(time.time() * 4) * 5 + (audio_amp * 30)
-        r_base = 120 + pulso
+        r_base = 115 + pulso
 
         self.desenhar_glow_circle(self.tela, cor, self.centro, int(r_base), 3, 90)
         
@@ -322,12 +317,12 @@ class HudKoda:
         pygame.draw.arc(self.tela, cor, (self.centro[0]-r_base, self.centro[1]-r_base, r_base*2, r_base*2), self.ang, self.ang + math.pi, 4)
 
         pontos_onda = []
-        base_onda = 80
+        base_onda = 75
         for i in range(100):
             a = 2 * math.pi * (i / 100)
             idx = int((i / 100) * (len(audio_visual) - 1)) if len(audio_visual) > 0 else 0
             val = abs(audio_visual[idx]) if len(audio_visual) > 0 else 0
-            d = base_onda + int(val * 160)
+            d = base_onda + int(val * 150)
             pontos_onda.append((self.centro[0] + int(d * math.cos(a)), self.centro[1] + int(d * math.sin(a))))
         
         if len(pontos_onda) > 2:
@@ -337,45 +332,80 @@ class HudKoda:
 
         if status_texto:
             surf_txt = self.fonte_hud.render(f"[ {status_texto} ]", True, cor)
-            self.tela.blit(surf_txt, surf_txt.get_rect(center=(self.centro[0], self.centro[1] + r_base + 40)))
+            self.tela.blit(surf_txt, surf_txt.get_rect(center=(self.centro[0], self.centro[1] + r_base + 35)))
         
-        self.tela.blit(self.fonte_pequena.render(f"RAD: {r_base:.1f} | ANG: {self.ang:.2f}", True, cor_texto), (self.centro[0] + r_base + 30, self.centro[1]))
+        self.tela.blit(self.fonte_pequena.render(f"RAD: {r_base:.1f} | ANG: {self.ang:.2f}", True, cor_texto), (self.centro[0] + r_base + 25, self.centro[1]))
         self.tela.blit(self.fonte_pequena.render(f"JARVIS_v2.0_CORE", True, cor_texto), (self.centro[0] - r_base - 110, self.centro[1]))
 
-        # Caixa do Módulo Ativo (Canto Superior Esquerdo)
-        pygame.draw.rect(self.tela, (15, 20, 35), (self.MARGEM + 10, self.MARGEM + 10, 230, 50))
-        pygame.draw.rect(self.tela, cor, (self.MARGEM + 10, self.MARGEM + 10, 230, 50), 1)
-        self.tela.blit(self.fonte_stats.render("ACTIVE_MODULE:", True, (150, 150, 150)), (self.MARGEM + 20, self.MARGEM + 15))
-        self.tela.blit(self.fonte_log.render(self.modulo_ativo, True, cor), (self.MARGEM + 20, self.MARGEM + 35))
+        # =========================================================================
+        # LAYOUT BALANCEADO E SIMÉTRICO DA INTERFACE HUD
+        # =========================================================================
 
-        # Hardware Stats (Canto Superior Direito)
+        # --- COLUNA ESQUERDA (Superior: Active Module | Logo Abaixo: Satellite Cam) ---
+        x_left = self.MARGEM + 10
+        w_col_left = 240
+
+        # 1. Active Module Box
+        pygame.draw.rect(self.tela, (15, 20, 35), (x_left, self.MARGEM + 10, w_col_left, 50))
+        pygame.draw.rect(self.tela, cor, (x_left, self.MARGEM + 10, w_col_left, 50), 1)
+        self.tela.blit(self.fonte_stats.render("ACTIVE_MODULE:", True, (150, 150, 150)), (x_left + 10, self.MARGEM + 15))
+        self.tela.blit(self.fonte_log.render(self.modulo_ativo, True, cor), (x_left + 10, self.MARGEM + 35))
+
+        # 2. Quadro da Câmera Satélite (Posicionado perfeitamente na Coluna Esquerda)
+        self.desenhar_frame_camera_satelite(x_left, self.MARGEM + 70, w_col_left, 175, cor)
+
+
+        # --- COLUNA DIREITA (Superior: Hardware Stats CPU/RAM | Logo Abaixo: Status do Sistema) ---
+        w_col_right = 240
+        x_right = larg - self.MARGEM - w_col_right
+
+        # 1. Hardware Stats Box (CPU / RAM)
+        pygame.draw.rect(self.tela, (15, 20, 35), (x_right, self.MARGEM + 10, w_col_right, 70))
+        pygame.draw.rect(self.tela, cor, (x_right, self.MARGEM + 10, w_col_right, 70), 1)
+        
         cpu = psutil.cpu_percent()
         ram = psutil.virtual_memory().percent
-        x_hw = larg - self.MARGEM - 130
         
-        self.tela.blit(self.fonte_stats.render(f"CPU [{cpu:04.1f}%]", True, cor_texto), (x_hw, self.MARGEM + 10))
-        for i in range(10):
-            cor_bloco = cor if (cpu/10) >= i else (20, 25, 45)
-            pygame.draw.rect(self.tela, cor_bloco, (x_hw + (i*14), self.MARGEM + 25, 10, 12))
+        self.tela.blit(self.fonte_stats.render(f"CPU [{cpu:04.1f}%]", True, cor_texto), (x_right + 10, self.MARGEM + 15))
+        for i in range(12):
+            cor_bloco = cor if (cpu/8.33) >= i else (20, 25, 45)
+            pygame.draw.rect(self.tela, cor_bloco, (x_right + 10 + (i*17), self.MARGEM + 30, 13, 8))
 
-        self.tela.blit(self.fonte_stats.render(f"RAM [{ram:04.1f}%]", True, cor_texto), (x_hw, self.MARGEM + 50))
-        for i in range(10): 
-            cor_bloco = cor if (ram/10) >= i else (20, 25, 45)
-            pygame.draw.rect(self.tela, cor_bloco, (x_hw + (i*14), self.MARGEM + 65, 10, 12))
+        self.tela.blit(self.fonte_stats.render(f"RAM [{ram:04.1f}%]", True, cor_texto), (x_right + 10, self.MARGEM + 42))
+        for i in range(12): 
+            cor_bloco = cor if (ram/8.33) >= i else (20, 25, 45)
+            pygame.draw.rect(self.tela, cor_bloco, (x_right + 10 + (i*17), self.MARGEM + 57, 13, 8))
 
-        # Quadro da Câmera Satélite (Canto Superior Direito, abaixo dos Stats de CPU/RAM)
-        self.desenhar_frame_camera_satelite(larg - self.MARGEM - 240, self.MARGEM + 90, 240, 180, cor)
-
-        # Logs do Sistema (Canto Inferior Esquerdo)
-        y_log = alt - self.MARGEM - 130
-        self.tela.blit(self.fonte_stats.render(":: SYS_LOGS ::", True, cor), (self.MARGEM + 10, y_log))
-        pygame.draw.line(self.tela, cor, (self.MARGEM + 10, y_log + 15), (200, y_log + 15), 1)
+        # 2. Quadro de Status do Sistema / Conectividade (Coluna Direita)
+        pygame.draw.rect(self.tela, (15, 20, 35), (x_right, self.MARGEM + 90, w_col_right, 155))
+        pygame.draw.rect(self.tela, cor, (x_right, self.MARGEM + 90, w_col_right, 155), 1)
+        self.tela.blit(self.fonte_stats.render("[ SYSTEM DIAGNOSTICS ]", True, cor), (x_right + 10, self.MARGEM + 95))
         
-        for i, log in enumerate(log_eventos[-6:]):
-            self.tela.blit(self.fonte_log.render(log[0], True, log[1]), (self.MARGEM + 10, y_log + 25 + (i * 18)))
+        ip_cam = getattr(self.config, 'NOTEBOOK_CAM_IP', 'DESCONECTADO')
+        self.tela.blit(self.fonte_pequena.render(f"SAT_CAM IP: {ip_cam}", True, cor_texto), (x_right + 10, self.MARGEM + 115))
+        self.tela.blit(self.fonte_pequena.render(f"VOICE CORE: pt-BR-Antonio", True, cor_texto), (x_right + 10, self.MARGEM + 130))
+        self.tela.blit(self.fonte_pequena.render(f"VECTOR RAG: ONLINE (ChromaDB)", True, cor_texto), (x_right + 10, self.MARGEM + 145))
+        self.tela.blit(self.fonte_pequena.render(f"WAKE ENGINE: VOSK OFFLINE", True, cor_texto), (x_right + 10, self.MARGEM + 160))
+        self.tela.blit(self.fonte_pequena.render(f"TUYA SMART: 192.168.0.4", True, cor_texto), (x_right + 10, self.MARGEM + 175))
+        self.tela.blit(self.fonte_pequena.render(f"SECURITY: SENTINEL ACTIVE", True, cor_texto), (x_right + 10, self.MARGEM + 190))
 
-        # Equalizador de Áudio (Canto Inferior Direito)
-        self.desenhar_equalizador_audio(audio_visual, larg - self.MARGEM - 220, alt - self.MARGEM - 130, 220, 120, cor)
+
+        # --- RODAPÉ SIMÉTRICO (Esquerda: System Logs | Direita: Audio Spectrum) ---
+        y_bottom = alt - self.MARGEM - 130
+        w_bottom_box = 320
+
+        # Logs do Sistema (Inferior Esquerdo)
+        pygame.draw.rect(self.tela, (15, 20, 35), (self.MARGEM + 10, y_bottom, w_bottom_box, 130))
+        pygame.draw.rect(self.tela, cor, (self.MARGEM + 10, y_bottom, w_bottom_box, 130), 1)
+        self.tela.blit(self.fonte_stats.render(":: SYS_LOGS ::", True, cor), (self.MARGEM + 20, y_bottom + 8))
+        pygame.draw.line(self.tela, cor, (self.MARGEM + 20, y_bottom + 22), (self.MARGEM + 150, y_bottom + 22), 1)
+        
+        for i, log in enumerate(log_eventos[-5:]):
+            txt_log = log[0] if len(log[0]) < 42 else log[0][:40] + ".."
+            self.tela.blit(self.fonte_log.render(txt_log, True, log[1]), (self.MARGEM + 20, y_bottom + 28 + (i * 18)))
+
+        # Equalizador de Áudio (Inferior Direito - Largura equivalente para simetria)
+        self.desenhar_equalizador_audio(audio_visual, larg - self.MARGEM - w_bottom_box, y_bottom, w_bottom_box, 130, cor)
 
         pygame.display.flip()
 
