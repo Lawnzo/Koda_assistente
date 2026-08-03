@@ -8,20 +8,25 @@ def compilar():
     print("         INICIANDO COMPILAÇÃO DO KODA AI 2.0.exe          ")
     print("=========================================================")
     
-    # Mata processos anteriores se existirem
+    # Mata qualquer processo anterior do Koda_v2.exe
     try:
         subprocess.run('taskkill /f /im Koda_v2.exe', shell=True, capture_output=True)
     except Exception:
         pass
 
-    # Garante que a pasta de destino esteja limpa
-    dist_dir = os.path.join(os.getcwd(), "dist_koda")
-    build_dir = os.path.join(os.getcwd(), "build_koda")
+    dist_dir = os.path.join(os.getcwd(), "dist_release")
+    build_dir = os.path.join(os.getcwd(), "build_release")
     
     if os.path.exists(dist_dir):
-        shutil.rmtree(dist_dir, ignore_errors=True)
+        try:
+            shutil.rmtree(dist_dir, ignore_errors=True)
+        except Exception:
+            pass
     if os.path.exists(build_dir):
-        shutil.rmtree(build_dir, ignore_errors=True)
+        try:
+            shutil.rmtree(build_dir, ignore_errors=True)
+        except Exception:
+            pass
 
     cmd = [
         sys.executable, "-m", "PyInstaller",

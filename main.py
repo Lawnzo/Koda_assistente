@@ -47,7 +47,7 @@ aguardando_especificacao_codigo = False
 aguardando_confirmacao_plano = False
 aguardando_confirmacao_reiniciar = False
 modulo_atual = "SISTEMA_IDLE"
-log_eventos = [("SYS.INIT: KODA CORE v2.0 CAM_HUD ONLINE.", (0, 220, 255))]
+log_eventos = [("SYS.INIT: KODA CORE v2.0 HD ONLINE.", (0, 220, 255))]
 
 # Component Initialization
 tts = TTSEngine(default_voice=config.VOZES_DISPONIVEIS.get("antonio", "pt-BR-AntonioNeural"))
@@ -110,15 +110,41 @@ def callback_audio(indata, frames, tempo, status):
     global audio_visual
     audio_visual = indata[:, 0]
 
+def obter_microfone_reconhecimento():
+    """Seleciona o microfone correto no sistema para o SpeechRecognition."""
+    try:
+        mics = sr.Microphone.list_microphone_names()
+        for idx, name in enumerate(mics):
+            name_lower = name.lower()
+            if any(k in name_lower for k in ["microfone", "microphone", "input", "realtek", "array", "headset"]):
+                print(f"[AUDIO SR] Usando microfone [{idx}]: {name}")
+                return sr.Microphone(device_index=idx)
+    except Exception as e:
+        print(f"[AUDIO SR WARN] Erro ao buscar lista de microfones: {e}")
+    
+    try:
+        return sr.Microphone()
+    except Exception as e:
+        print(f"[AUDIO SR ERROR] Microfone padrão indisponível: {e}")
+        return None
+
 def escutar_e_processar():
     global processando_comando, tempo_modo_atento, log_eventos, modulo_atual
     global solicitou_minimizar, solicitou_maximizar, solicitou_reiniciar, executando
     global aguardando_especificacao_codigo, aguardando_confirmacao_plano, aguardando_confirmacao_reiniciar
 
     rec = sr.Recognizer()
-    mic = sr.Microphone()
-    with mic as fonte:
-        rec.adjust_for_ambient_noise(fonte)
+    mic = obter_microfone_reconhecimento()
+
+    if mic:
+        try:
+            with mic as fonte:
+                rec.adjust_for_ambient_noise(fonte, duration=1)
+            log_eventos.append((f"> AUDIO: MICROFONE CONECTADO OK", (0, 255, 150)))
+        except Exception as e:
+            log_eventos.append((f"> AUDIO ERR: {str(e)[:30]}", (255, 50, 50)))
+    else:
+        log_eventos.append((f"> AUDIO ERR: NENHUM MIC DETECTADO", (255, 50, 50)))
 
     while executando:
         agora = time.time()
@@ -134,126 +160,132 @@ def escutar_e_processar():
         while tts.is_speaking():
             time.sleep(0.1)
 
-        with mic as fonte:
-            try:
-                audio = rec.listen(fonte, timeout=1, phrase_time_limit=10)
-            except Exception:
-                continue
+        if not mic:
+            time.sleep(1)
+            mic = obter_microfone_reconhecimento()
+            continue
 
-            try:
-                texto = rec.recognize_google(audio, language="pt-BR").lower()
-                gatilhos = getattr(config, 'GATILHOS_ATIVACAO', ['koda', 'computador'])
-                
-                for g in gatilhos:
-                    texto = texto.replace(g, "")
-                texto = texto.strip()
+        try:
+            with mic as fonte:
+                try:
+                    audio = rec.listen(fonte, timeout=1, phrase_time_limit=10)
+                except Exception:
+                    continue
 
-                if len(texto) >= 1:
-                    processando_comando = True
-                    log_eventos.append((f"> USR: {texto}", (180, 180, 180)))
+                try:
+                    texto = rec.recognize_google(audio, language="pt-BR").lower()
+                    gatilhos = getattr(config, 'GATILHOS_ATIVACAO', ['koda', 'computador'])
+                    
+                    for g in gatilhos:
+                        texto = texto.replace(g, "")
+                    texto = texto.strip()
 
-                    palavras_negativas = ["não", "nao", "agora não", "cancelar", "espera", "pare"]
-                    palavras_afirmativas = ["sim", "pode", "reiniciar", "prosseguir", "gerar", "reinicia", "reinicie", "com certeza", "claro", "bora", "quero", "vá", "vai", "ok", "beleza", "confirmo", "afirmativo", "simples", "por favor", "manda", "pode ser", "uhum"]
+                    if len(texto) >= 1:
+                        processando_comando = True
+                        log_eventos.append((f"> USR: {texto}", (180, 180, 180)))
 
-                    # 1. Se está aguardando confirmação de reinicialização
-                    if aguardando_confirmacao_reiniciar:
-                        aguardando_confirmacao_reiniciar = False
-                        if not any(n in texto for n in palavras_negativas) and (any(w in texto for w in palavras_afirmativas) or len(texto) < 10):
-                            log_eventos.append((f"> SYS: REINICIANDO SISTEMA...", (255, 200, 0)))
-                            tts.speak("Reiniciando o aplicativo Koda para carregar a nova habilidade.")
-                            solicitou_reiniciar = True
-                        else:
-                            log_eventos.append((f"> SYS: REINÍCIO CANCELADO", (150, 150, 150)))
-                            tts.speak("Entendido. A nova funcionalidade estará ativa na próxima inicialização.")
+                        palavras_negativas = ["não", "nao", "agora não", "cancelar", "espera", "pare"]
+                        palavras_afirmativas = ["sim", "pode", "reiniciar", "prosseguir", "gerar", "reinicia", "reinicie", "com certeza", "claro", "bora", "quero", "vá", "vai", "ok", "beleza", "confirmo", "afirmativo", "simples", "por favor", "manda", "pode ser", "uhum"]
 
-                    # 2. Se está aguardando confirmação do PLANO de código antes de gerar
-                    elif aguardando_confirmacao_plano:
-                        aguardando_confirmacao_plano = False
-                        if not any(n in texto for n in palavras_negativas) and (any(w in texto for w in palavras_afirmativas) or len(texto) < 10):
-                            log_eventos.append((f"> SYS: Escrevendo código...", (255, 120, 0)))
-                            tts.speak("Certo, estou gerando o código em segundo plano.")
-                            resposta, modulo = auto_coder_skill.generate_pending_code()
+                        if aguardando_confirmacao_reiniciar:
+                            aguardando_confirmacao_reiniciar = False
+                            if not any(n in texto for n in palavras_negativas) and (any(w in texto for w in palavras_afirmativas) or len(texto) < 10):
+                                log_eventos.append((f"> SYS: REINICIANDO SISTEMA...", (255, 200, 0)))
+                                tts.speak("Reiniciando o aplicativo Koda para carregar a nova habilidade.")
+                                solicitou_reiniciar = True
+                            else:
+                                log_eventos.append((f"> SYS: REINÍCIO CANCELADO", (150, 150, 150)))
+                                tts.speak("Entendido. A nova funcionalidade estará ativa na próxima inicialização.")
+
+                        elif aguardando_confirmacao_plano:
+                            aguardando_confirmacao_plano = False
+                            if not any(n in texto for n in palavras_negativas) and (any(w in texto for w in palavras_afirmativas) or len(texto) < 10):
+                                log_eventos.append((f"> SYS: Escrevendo código...", (255, 120, 0)))
+                                tts.speak("Certo, estou gerando o código em segundo plano.")
+                                resposta, modulo = auto_coder_skill.generate_pending_code()
+                                modulo_atual = modulo
+                                if modulo == "WAIT_RESTART_CONFIRMATION":
+                                    aguardando_confirmacao_reiniciar = True
+                                log_eventos.append((f"> SYS: {resposta[:45]}...", (0, 220, 255)))
+                                tts.speak(resposta)
+                                while tts.is_speaking():
+                                    time.sleep(0.1)
+                                tempo_modo_atento = time.time() + 15
+                            else:
+                                log_eventos.append((f"> SYS: PROGRAMAÇÃO CANCELADA", (150, 150, 150)))
+                                tts.speak("Entendido, Lucas. Programação cancelada.")
+
+                        elif aguardando_especificacao_codigo:
+                            aguardando_especificacao_codigo = False
+                            log_eventos.append((f"> SYS: Analisando plano...", (255, 120, 0)))
+                            resposta, modulo = auto_coder_skill.plan_code(texto)
                             modulo_atual = modulo
-                            if modulo == "WAIT_RESTART_CONFIRMATION":
-                                aguardando_confirmacao_reiniciar = True
+                            if modulo == "WAIT_CODING_PLAN_CONFIRMATION":
+                                aguardando_confirmacao_plano = True
                             log_eventos.append((f"> SYS: {resposta[:45]}...", (0, 220, 255)))
                             tts.speak(resposta)
                             while tts.is_speaking():
                                 time.sleep(0.1)
                             tempo_modo_atento = time.time() + 15
-                        else:
-                            log_eventos.append((f"> SYS: PROGRAMAÇÃO CANCELADA", (150, 150, 150)))
-                            tts.speak("Entendido, Lucas. Programação cancelada.")
 
-                    # 3. Se está aguardando a especificação do código a ser gerado
-                    elif aguardando_especificacao_codigo:
-                        aguardando_especificacao_codigo = False
-                        log_eventos.append((f"> SYS: Analisando plano...", (255, 120, 0)))
-                        resposta, modulo = auto_coder_skill.plan_code(texto)
-                        modulo_atual = modulo
-                        if modulo == "WAIT_CODING_PLAN_CONFIRMATION":
-                            aguardando_confirmacao_plano = True
-                        log_eventos.append((f"> SYS: {resposta[:45]}...", (0, 220, 255)))
-                        tts.speak(resposta)
-                        while tts.is_speaking():
-                            time.sleep(0.1)
+                        else:
+                            cmd_min = getattr(config, 'COMANDOS_MINIMIZAR', ['minimizar'])
+                            cmd_max = getattr(config, 'COMANDOS_MAXIMIZAR', ['restaurar', 'maximizar'])
+
+                            if any(c in texto for c in cmd_min):
+                                solicitou_minimizar = True
+                                modulo_atual = "SYS_UI"
+                                tts.speak("Interface minimizada.")
+                            elif any(c in texto for c in cmd_max):
+                                solicitou_maximizar = True
+                                modulo_atual = "SYS_UI"
+                                tts.speak("Painel principal restaurado.")
+                            else:
+                                contexto_local = vector_db.buscar_contexto(texto, n_results=2)
+                                if contexto_local:
+                                    log_eventos.append((f"> RAG: {len(contexto_local)} TRECHOS ENCONTRADOS", (0, 255, 150)))
+                                    contexto_str = "\n- ".join(contexto_local)
+                                    prompt_enriquecido = f"[MEMÓRIA LOCAL DO KODA:\n- {contexto_str}]\n\nPergunta do Usuário: {texto}"
+                                    resposta, modulo = dispatcher.dispatch(prompt_enriquecido)
+                                else:
+                                    resposta, modulo = dispatcher.dispatch(texto)
+
+                                modulo_atual = modulo
+                                if modulo == "WAIT_AUTO_CODE_PROMPT":
+                                    aguardando_especificacao_codigo = True
+                                    log_eventos.append((f"> SYS: {resposta[:45]}...", (255, 200, 0)))
+                                    tts.speak(resposta)
+                                    while tts.is_speaking():
+                                        time.sleep(0.1)
+                                    tempo_modo_atento = time.time() + 15
+                                elif modulo == "WAIT_CODING_PLAN_CONFIRMATION":
+                                    aguardando_confirmacao_plano = True
+                                    log_eventos.append((f"> SYS: {resposta[:45]}...", (255, 200, 0)))
+                                    tts.speak(resposta)
+                                    while tts.is_speaking():
+                                        time.sleep(0.1)
+                                    tempo_modo_atento = time.time() + 15
+                                elif modulo == "WAIT_RESTART_CONFIRMATION":
+                                    aguardando_confirmacao_reiniciar = True
+                                    log_eventos.append((f"> SYS: {resposta[:45]}...", (255, 200, 0)))
+                                    tts.speak(resposta)
+                                    while tts.is_speaking():
+                                        time.sleep(0.1)
+                                    tempo_modo_atento = time.time() + 15
+                                elif resposta:
+                                    log_eventos.append((f"> SYS: {resposta[:45]}...", (0, 220, 255)))
+                                    tts.speak(resposta)
+
                         tempo_modo_atento = time.time() + 15
 
-                    # 4. Comandos Normais com Busca RAG Automática em Fallback
-                    else:
-                        cmd_min = getattr(config, 'COMANDOS_MINIMIZAR', ['minimizar'])
-                        cmd_max = getattr(config, 'COMANDOS_MAXIMIZAR', ['restaurar', 'maximizar'])
+                except Exception:
+                    pass
 
-                        if any(c in texto for c in cmd_min):
-                            solicitou_minimizar = True
-                            modulo_atual = "SYS_UI"
-                            tts.speak("Interface minimizada.")
-                        elif any(c in texto for c in cmd_max):
-                            solicitou_maximizar = True
-                            modulo_atual = "SYS_UI"
-                            tts.speak("Painel principal restaurado.")
-                        else:
-                            contexto_local = vector_db.buscar_contexto(texto, n_results=2)
-                            if contexto_local:
-                                log_eventos.append((f"> RAG: {len(contexto_local)} TRECHOS ENCONTRADOS", (0, 255, 150)))
-                                contexto_str = "\n- ".join(contexto_local)
-                                prompt_enriquecido = f"[MEMÓRIA LOCAL DO KODA:\n- {contexto_str}]\n\nPergunta do Usuário: {texto}"
-                                resposta, modulo = dispatcher.dispatch(prompt_enriquecido)
-                            else:
-                                resposta, modulo = dispatcher.dispatch(texto)
-
-                            modulo_atual = modulo
-                            if modulo == "WAIT_AUTO_CODE_PROMPT":
-                                aguardando_especificacao_codigo = True
-                                log_eventos.append((f"> SYS: {resposta[:45]}...", (255, 200, 0)))
-                                tts.speak(resposta)
-                                while tts.is_speaking():
-                                    time.sleep(0.1)
-                                tempo_modo_atento = time.time() + 15
-                            elif modulo == "WAIT_CODING_PLAN_CONFIRMATION":
-                                aguardando_confirmacao_plano = True
-                                log_eventos.append((f"> SYS: {resposta[:45]}...", (255, 200, 0)))
-                                tts.speak(resposta)
-                                while tts.is_speaking():
-                                    time.sleep(0.1)
-                                tempo_modo_atento = time.time() + 15
-                            elif modulo == "WAIT_RESTART_CONFIRMATION":
-                                aguardando_confirmacao_reiniciar = True
-                                log_eventos.append((f"> SYS: {resposta[:45]}...", (255, 200, 0)))
-                                tts.speak(resposta)
-                                while tts.is_speaking():
-                                    time.sleep(0.1)
-                                tempo_modo_atento = time.time() + 15
-                            elif resposta:
-                                log_eventos.append((f"> SYS: {resposta[:45]}...", (0, 220, 255)))
-                                tts.speak(resposta)
-
-                    tempo_modo_atento = time.time() + 15
-
-            except Exception:
-                pass
-            finally:
-                processando_comando = False
+        except Exception as err_mic:
+            log_eventos.append((f"> MIC ERR: {str(err_mic)[:30]}", (255, 50, 50)))
+            time.sleep(1)
+        finally:
+            processando_comando = False
 
 # Main Execution Loop
 if __name__ == "__main__":
@@ -267,7 +299,8 @@ if __name__ == "__main__":
     threading.Thread(target=escutar_e_processar, daemon=True).start()
     
     try:
-        stream = sd.InputStream(callback=callback_audio, channels=1, samplerate=getattr(config, 'TAXA_AMOSTRAGEM', 44100))
+        dev_in = wake_engine.obter_dispositivo_entrada()
+        stream = sd.InputStream(callback=callback_audio, channels=1, samplerate=getattr(config, 'TAXA_AMOSTRAGEM', 44100), device=dev_in)
         stream.start()
     except Exception as e:
         print(f"[AUDIO WARN] Microfone visual não inicializado: {e}")

@@ -32,21 +32,42 @@ class OfflineWakeWord:
             pass
         self.audio_queue.put(bytes(indata))
 
+    def obter_dispositivo_entrada(self):
+        """Encontra o índice de um microfone de entrada válido no sistema."""
+        try:
+            default_in = sd.default.device[0]
+            if default_in is not None and default_in >= 0:
+                dev_info = sd.query_devices(default_in)
+                if dev_info.get('max_input_channels', 0) > 0:
+                    return default_in
+
+            devices = sd.query_devices()
+            for idx, dev in enumerate(devices):
+                if dev.get('max_input_channels', 0) > 0:
+                    print(f"[WAKE WORD] Selecionado microfone alternativo [{idx}]: {dev.get('name')}")
+                    return idx
+        except Exception as e:
+            print(f"[WAKE WORD WARN] Erro ao buscar dispositivos de som: {e}")
+        return None
+
     def listen_loop(self):
         if not self.model and not self.initialize():
             print("[WAKE WORD ERROR] Não foi possível iniciar escuta offline.")
             return
 
         self.running = True
+        input_dev = self.obter_dispositivo_entrada()
+
         try:
             with sd.RawInputStream(
                 samplerate=self.sample_rate,
                 blocksize=4000,
                 dtype='int16',
                 channels=1,
+                device=input_dev,
                 callback=self._audio_callback
             ):
-                print(f"[WAKE WORD] Escuta offline rodando! Palavras-chave: {self.keywords}")
+                print(f"[WAKE WORD] Escuta offline rodando no dispositivo [{input_dev}]! Palavras-chave: {self.keywords}")
                 while self.running:
                     try:
                         data = self.audio_queue.get(timeout=0.5)
@@ -67,7 +88,7 @@ class OfflineWakeWord:
                                 self.on_wake_callback(partial_text)
                             self.recognizer.Reset()
         except Exception as e:
-            print(f"[WAKE WORD ERROR] Erro no loop offline: {e}")
+            print(f"[WAKE WORD ERROR] Erro no loop de áudio offline: {e}")
 
     def stop(self):
         self.running = False

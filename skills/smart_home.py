@@ -36,19 +36,47 @@ class SmartHomeSkill(BaseSkill):
         key = self.config.LUZ_KEY
         version = getattr(self.config, 'LUZ_VERSAO', 3.3)
 
+        cmd_lower = cmd.lower()
+        is_off = any(x in cmd_lower for x in ["desliga", "apaga", "desligar", "apagar", "desligue", "apague", "desativar", "escuro", "parar", "mudo"])
+
         try:
             d = tinytuya.BulbDevice(dev_id=dev_id, address=current_ip, local_key=key, version=version)
             d.set_socketPersistent(True)
 
-            if any(x in cmd for x in getattr(self.config, 'COMANDOS_LIGAR', ['liga', 'acende'])):
-                d.set_value(20, True) 
-                return "Luz do quarto acesa.", "HARDWARE_LUZ"
-            elif any(x in cmd for x in getattr(self.config, 'COMANDOS_DESLIGAR', ['desliga', 'apaga'])):
-                d.set_value(20, False) 
-                return "Entendido, apagando a luz.", "HARDWARE_LUZ"
+            if is_off:
+                print(f"[TUYA LUZ] Executando desligamento da lâmpada em {current_ip}...")
+                ok_off = False
+                try:
+                    d.turn_off()
+                    ok_off = True
+                except Exception as e_off:
+                    print(f"[TUYA WARN turn_off] {e_off}")
+
+                try:
+                    d.set_value(20, False)
+                    ok_off = True
+                except Exception as e_val:
+                    print(f"[TUYA WARN set_value 20] {e_val}")
+
+                if ok_off:
+                    return "Entendido, apagando a luz do quarto.", "HARDWARE_LUZ"
             else:
-                d.set_value(20, True)
-                return "Luz ajustada.", "HARDWARE_LUZ"
+                print(f"[TUYA LUZ] Executando acionamento da lâmpada em {current_ip}...")
+                ok_on = False
+                try:
+                    d.turn_on()
+                    ok_on = True
+                except Exception as e_on:
+                    print(f"[TUYA WARN turn_on] {e_on}")
+
+                try:
+                    d.set_value(20, True)
+                    ok_on = True
+                except Exception as e_val:
+                    print(f"[TUYA WARN set_value 20] {e_val}")
+
+                if ok_on:
+                    return "Luz do quarto acesa.", "HARDWARE_LUZ"
 
         except Exception as e:
             print(f"[TUYA ERRO LUZ IP {current_ip}] {e}. Tentando descoberta automática de IP...")
@@ -58,17 +86,16 @@ class SmartHomeSkill(BaseSkill):
                     self.config.LUZ_IP = new_ip
                     d = tinytuya.BulbDevice(dev_id=dev_id, address=new_ip, local_key=key, version=version)
                     d.set_socketPersistent(True)
-                    
-                    if any(x in cmd for x in getattr(self.config, 'COMANDOS_DESLIGAR', ['desliga', 'apaga'])):
-                        d.set_value(20, False)
+                    if is_off:
+                        d.turn_off()
                         return "Entendido, apagando a luz.", "HARDWARE_LUZ"
                     else:
-                        d.set_value(20, True)
+                        d.turn_on()
                         return "Luz do quarto acesa.", "HARDWARE_LUZ"
                 except Exception as ex:
                     print(f"[TUYA ERRO RETRY LUZ] {ex}")
 
-            return "Lucas, perdi a comunicação local com a lâmpada.", "ERRO_HARDWARE"
+        return "Lucas, perdi a comunicação local com a lâmpada.", "ERRO_HARDWARE"
 
     def control_fan(self, cmd):
         if not self.config or not hasattr(self.config, 'VENT_ID'):
@@ -79,19 +106,19 @@ class SmartHomeSkill(BaseSkill):
         key = self.config.VENT_KEY
         version = getattr(self.config, 'VENT_VERSAO', 3.3)
 
+        cmd_lower = cmd.lower()
+        is_off = any(x in cmd_lower for x in ["desliga", "desligar", "desligue", "apaga", "apagar", "apague", "desativar", "parar"])
+
         try:
             d = tinytuya.OutletDevice(dev_id=dev_id, address=current_ip, local_key=key, version=version)
             d.set_socketPersistent(True)
 
-            if any(x in cmd for x in getattr(self.config, 'COMANDOS_LIGAR', ['liga'])):
-                d.turn_on() 
-                return "Entendido. Ligando o ventilador.", "HARDWARE_VENT"
-            elif any(x in cmd for x in getattr(self.config, 'COMANDOS_DESLIGAR', ['desliga'])):
-                d.turn_off() 
+            if is_off:
+                d.turn_off()
                 return "Tudo bem. Desligando o ventilador.", "HARDWARE_VENT"
             else:
                 d.turn_on()
-                return "Ventilador acionado.", "HARDWARE_VENT"
+                return "Entendido. Ligando o ventilador.", "HARDWARE_VENT"
 
         except Exception as e:
             print(f"[TUYA ERRO VENT IP {current_ip}] {e}. Tentando descoberta automática...")
@@ -101,7 +128,7 @@ class SmartHomeSkill(BaseSkill):
                     self.config.VENT_IP = new_ip
                     d = tinytuya.OutletDevice(dev_id=dev_id, address=new_ip, local_key=key, version=version)
                     d.set_socketPersistent(True)
-                    if any(x in cmd for x in getattr(self.config, 'COMANDOS_DESLIGAR', ['desliga'])):
+                    if is_off:
                         d.turn_off()
                         return "Desligando o ventilador.", "HARDWARE_VENT"
                     else:
