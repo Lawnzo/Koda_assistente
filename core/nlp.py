@@ -35,6 +35,11 @@ class LocalNLP:
         if not self.training_phrases:
             return "UNKNOWN", 0
 
+        # Regra direta de alta prioridade para Câmera / Visão da Webcam
+        palavras_visao = ["câmera", "webcam", "dedo", "dedos", "mão", "mãozinha", "segurando", "mostrando", "na minha mão", "tem na mão"]
+        if any(w in text for w in palavras_visao) and not any(t in text for t in ["tela", "print"]):
+            return "VISAO_WEBCAM", 100
+
         best_match = process.extractOne(text, self.training_phrases, scorer=fuzz.token_set_ratio)
         if best_match:
             phrase, score = best_match[0], best_match[1]
