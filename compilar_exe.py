@@ -8,14 +8,13 @@ def compilar():
     print("         INICIANDO COMPILAÇÃO DO KODA AI 2.0.exe          ")
     print("=========================================================")
     
-    # Mata qualquer processo anterior do Koda_v2.exe
     try:
         subprocess.run('taskkill /f /im Koda_v2.exe', shell=True, capture_output=True)
     except Exception:
         pass
 
-    dist_dir = os.path.join(os.getcwd(), "dist_release")
-    build_dir = os.path.join(os.getcwd(), "build_release")
+    dist_dir = os.path.join(os.getcwd(), "dist_app")
+    build_dir = os.path.join(os.getcwd(), "build_app")
     
     if os.path.exists(dist_dir):
         try:
@@ -36,6 +35,9 @@ def compilar():
         "--name=Koda_v2",
         f"--distpath={dist_dir}",
         f"--workpath={build_dir}",
+        "--collect-all=tinytuya",
+        "--collect-all=cryptography",
+        "--collect-all=Crypto",
         "--collect-all=vosk",
         "--collect-all=chromadb",
         "--collect-all=onnxruntime",
