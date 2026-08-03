@@ -86,9 +86,9 @@ VOZES_DISPONIVEIS = {
     "thalita": "pt-BR-ThalitaMultilingualNeural" # Feminina Jovem PT-BR
 }
 
-# --- 7. CONFIGURAÇÕES VISUAIS (INTERFACE) ---
-LARGURA = 800
-ALTURA = 600
+# --- 7. CONFIGURAÇÕES VISUAIS (INTERFACE HD 1280x720) ---
+LARGURA = 1280
+ALTURA = 720
 COR_KODA = (0, 255, 200)       # Turquesa Neon
 COR_LINHA = (0, 100, 110)      # Azul petróleo 
 COR_FUNDO = (5, 10, 15)        # Azul quase preto
@@ -102,7 +102,7 @@ LUZ_KEY = "*AmFm!P+q@eLo7Ss"
 LUZ_VERSAO = 3.3
 
 # --- Ventilador (Tomada Inteligente) ---
-VENT_IP = "192.168.0.3" # Lembre-se de rodar 'python -m tinytuya scan' para descobrir o IP!
+VENT_IP = "192.168.0.3"
 VENT_ID = "eb04e8334f91546df2pbxs"
 VENT_KEY = "vo+k6Xjy2#xv>S@e"
 VENT_VERSAO = 3.3
@@ -119,5 +119,4 @@ COMANDOS_ATUALIZACAO = [
     "atualize o sistema",
     "atualizar o sistema",
     "pode atualizar o sistema",
-
 ]
