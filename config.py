@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv ()
 
 # --- 1. CHAVES E APIs ---
-CHAVE_API_GEMINI = os.getenv("GEMINI_KEY")
+CHAVE_API_GROK = os.getenv("GROK_API_KEY")
 API_KEY_CLIMA = os.getenv("CLIMA_KEY")
 NOTEBOOK_CAM_IP = os.getenv("NOTEBOOK_CAM_IP", "192.168.0.11")
 
@@ -65,12 +65,12 @@ PROCESSOS_SISTEMA = {
     "spotify": ["spotify.exe"],
     "discord": ["discord.exe"],
     "whatsapp": ["whatsapp.exe"],
-    "opera": ["opera.exe"],
+    "firefox": ["firefox.exe"],
     "edge": ["msedge.exe"],
     "chrome": ["chrome.exe"],
     "excel": ["excel.exe"],
     "word": ["winword.exe"],
-    "navegador": ["opera.exe", "chrome.exe", "msedge.exe"]
+    "navegador": ["firefox.exe", "chrome.exe", "msedge.exe"]
 }
 
 # --- 5. CONFIGURAÇÕES DA INTELIGÊNCIA ---
@@ -96,7 +96,7 @@ COR_TEXTO = (200, 255, 240)    # Branco azulado
 COR_USER = (180, 180, 180)     # Cinza
 
 # --- 8. AUTOMAÇÃO RESIDENCIAL (SMART LIFE / TUYA) ---
-LUZ_IP = "192.168.0.4"
+LUZ_IP = "192.168.0.6"
 LUZ_ID = "eb2aa6b51832d79f17jsim"
 LUZ_KEY = "*AmFm!P+q@eLo7Ss"
 LUZ_VERSAO = 3.3

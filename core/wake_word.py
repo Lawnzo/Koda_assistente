@@ -77,13 +77,14 @@ class OfflineWakeWord:
                     if self.recognizer.AcceptWaveform(data):
                         res = json.loads(self.recognizer.Result())
                         text = res.get("text", "").lower()
-                        if any(kw in text for kw in self.keywords):
+                        # Usa verificação com espaços para evitar gatilho em sílabas parciais
+                        if any(f" {kw} " in f" {text} " for kw in self.keywords):
                             if self.on_wake_callback:
                                 self.on_wake_callback(text)
                     else:
                         partial = json.loads(self.recognizer.PartialResult())
                         partial_text = partial.get("partial", "").lower()
-                        if any(kw in partial_text for kw in self.keywords):
+                        if any(f" {kw} " in f" {partial_text} " for kw in self.keywords):
                             if self.on_wake_callback:
                                 self.on_wake_callback(partial_text)
                             self.recognizer.Reset()

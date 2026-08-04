@@ -61,10 +61,14 @@
         "fechar", "encerrar", "desligar o processo", "mata o processo"
     ],
     "PESQUISAR": [
-        "pesquisar no google", "pesquisa sobre", "procure por", "buscar"
+        "pesquisar no google", "abrir google", "buscar no navegador"
     ],
     "VOICE_CONFIG": [
         "mudar voz", "trocar voz", "mudar a voz", "trocar a voz", "usar voz",
         "voz humberto", "voz jarvis", "voz francisca", "voz antonio"
+    ],
+    "CALAR_BOCA": [
+        "cala a boca", "cale a boca", "fique quieto", "silêncio", "fazer silêncio", 
+        "pare de falar", "fique mudo", "bico fechado"
     ]
 }

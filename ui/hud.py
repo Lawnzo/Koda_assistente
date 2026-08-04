@@ -93,6 +93,11 @@ class HudKoda:
         self.MARGEM = 35 
         self.modulo_ativo = "SISTEMA_IDLE"
         self.camera_preview_surf = None
+        self.grok_status = "TESTING..."
+        
+        self.cached_cpu = 0.0
+        self.cached_ram = 0.0
+        self.last_stat_update = 0
         
         larg = getattr(config, 'LARGURA', 1280)
         alt = getattr(config, 'ALTURA', 720)
@@ -364,8 +369,13 @@ class HudKoda:
         pygame.draw.rect(self.tela, (15, 20, 35), (x_right, self.MARGEM + 10, w_col_right, 75))
         pygame.draw.rect(self.tela, cor, (x_right, self.MARGEM + 10, w_col_right, 75), 1)
         
-        cpu = psutil.cpu_percent()
-        ram = psutil.virtual_memory().percent
+        if time.time() - self.last_stat_update > 1.0:
+            self.cached_cpu = psutil.cpu_percent()
+            self.cached_ram = psutil.virtual_memory().percent
+            self.last_stat_update = time.time()
+            
+        cpu = self.cached_cpu
+        ram = self.cached_ram
         
         self.tela.blit(self.fonte_stats.render(f"CPU [{cpu:04.1f}%]", True, cor_texto), (x_right + 15, self.MARGEM + 15))
         for i in range(16):
@@ -386,9 +396,14 @@ class HudKoda:
         self.tela.blit(self.fonte_log.render(f"• SAT_CAM IP: {ip_cam}", True, cor_texto), (x_right + 15, self.MARGEM + 125))
         self.tela.blit(self.fonte_log.render(f"• VOICE CORE: pt-BR-Antonio", True, cor_texto), (x_right + 15, self.MARGEM + 145))
         self.tela.blit(self.fonte_log.render(f"• VECTOR RAG: ONLINE (ChromaDB)", True, cor_texto), (x_right + 15, self.MARGEM + 165))
-        self.tela.blit(self.fonte_log.render(f"• WAKE ENGINE: VOSK OFFLINE", True, cor_texto), (x_right + 15, self.MARGEM + 185))
-        self.tela.blit(self.fonte_log.render(f"• TUYA SMART: 192.168.0.4", True, cor_texto), (x_right + 15, self.MARGEM + 205))
-        self.tela.blit(self.fonte_log.render(f"• SECURITY: SENTINEL ACTIVE", True, cor_texto), (x_right + 15, self.MARGEM + 225))
+        
+        # GROQ STATUS COM COR DINÂMICA
+        cor_grok = (0, 255, 100) if "ONLINE" in self.grok_status else (255, 50, 50) if "ERR" in self.grok_status else (255, 200, 0)
+        self.tela.blit(self.fonte_log.render(f"• GROQ AI : {self.grok_status}", True, cor_grok), (x_right + 15, self.MARGEM + 185))
+        
+        self.tela.blit(self.fonte_log.render(f"• WAKE ENGINE: VOSK OFFLINE", True, cor_texto), (x_right + 15, self.MARGEM + 205))
+        self.tela.blit(self.fonte_log.render(f"• TUYA SMART: 192.168.0.4", True, cor_texto), (x_right + 15, self.MARGEM + 225))
+
 
 
         # --- RODAPÉ HD SIMÉTRICO (Esquerda: System Logs | Direita: Audio Spectrum 430px) ---

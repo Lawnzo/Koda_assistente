@@ -6,5 +6,14 @@ psutil
 pyautogui
 SpeechRecognition
 requests
-google-generativeai
+openai
+vosk
 scipy
+chromadb
+python-dotenv
+tinytuya
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+pywin32

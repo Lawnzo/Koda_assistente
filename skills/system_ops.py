@@ -15,7 +15,7 @@ class SystemOpsSkill(BaseSkill):
         elif intent == "DATA":
             return datetime.now().strftime("Hoje é dia %d/%m/%Y."), "UTIL_DATE"
         elif intent == "STATUS_SISTEMA":
-            return f"CPU em {psutil.cpu_percent()}%. RAM em {psutil.virtual_memory().percent}%.", "UTIL_STATS"
+            return f"CPU em {psutil.cpu_percent(interval=1)}%. RAM em {psutil.virtual_memory().percent}%.", "UTIL_STATS"
         elif intent == "PESQUISAR":
             search_query = command_text.replace("pesquisar", "").replace("sobre", "").replace("no google", "").strip()
             webbrowser.open(f"https://www.google.com/search?q={search_query}")
